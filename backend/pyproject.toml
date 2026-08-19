@@ -17,7 +17,7 @@ dependencies = [
     "bcrypt",
     "anyio",
     "numpy",
-    "cuopt-cu13",
+    "cuopt-cu13==26.8.*",
     "reportlab",
 ]
 
