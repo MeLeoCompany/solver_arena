@@ -21,6 +21,10 @@ backend/engines/**/*.so
 backend/engines/**/*.dll
 backend/engines/**/*.h
 
+# Test fixture MPS files — only used by pytest (tests/conftest.py::EXAMPLES_DIR),
+# not by the running app or the Docker image; heavy, not worth it in git.
+backend/examples/
+
 # Frontend
 frontend/node_modules/
 frontend/dist/
