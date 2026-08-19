@@ -1,0 +1,26 @@
+# Secrets
+backend/.env
+.env.production
+
+# Python
+backend/venv/
+**/__pycache__/
+*.pyc
+
+# Runtime data (SQLite DB, uploads, solver results/logs)
+backend/data/
+backend/logs/
+
+# Vendored solver binaries (CPLEX/ALGLIB/QORE) — shipped separately, not via git
+backend/engines/**/*.so
+backend/engines/**/*.dll
+backend/engines/**/*.h
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+
+# Tooling / editor
+.pytest_cache/
+.vscode/
+.claude/
