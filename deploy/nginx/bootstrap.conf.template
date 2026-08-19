@@ -1,0 +1,17 @@
+# Временный конфиг, живёт только до первой успешной выдачи сертификата —
+# нужен, чтобы certbot мог пройти ACME HTTP-01 challenge через уже
+# запущенный nginx (webroot-метод). До этого момента у нас ещё нет
+# сертификата, поэтому 443/ssl_certificate тут быть не может.
+server {
+    listen 80;
+    server_name ${DOMAIN};
+
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+    }
+
+    location / {
+        return 200 'Сертификат для ${DOMAIN} выпускается, подождите немного и обновите страницу...';
+        add_header Content-Type text/plain;
+    }
+}

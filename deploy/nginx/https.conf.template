@@ -1,0 +1,50 @@
+# Рабочий конфиг после того, как сертификат для $DOMAIN уже получен.
+server {
+    listen 80;
+    server_name ${DOMAIN};
+
+    # Certbot продлевает сертификат через этот же webroot, пока nginx уже
+    # отдаёт остальной трафик по HTTPS — challenge должен продолжать
+    # работать и на 80-м порту, не только при первичной выдаче.
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+    }
+
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
+
+server {
+    listen 443 ssl;
+    server_name ${DOMAIN};
+
+    ssl_certificate /etc/letsencrypt/live/${DOMAIN}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/${DOMAIN}/privkey.pem;
+
+    root /usr/share/nginx/html;
+    index index.html;
+
+    # SPA fallback — React Router handles routing client-side.
+    location / {
+        try_files $uri /index.html;
+    }
+
+    # API prefixes — mirrors frontend/vite.config.ts's dev-time proxy list
+    # and the top-level routers in backend/app/api/*.py.
+    location ~ ^/(auth|batches|compare|jobs|solve|solvers|system|users)(/|$) {
+        proxy_pass http://backend:8000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # SSE endpoints (/jobs/*/logs, /batches/*/logs,
+        # /system/status/stream) need buffering off, or live streams arrive
+        # as one chunk at the end instead of in real time.
+        proxy_buffering off;
+        proxy_cache off;
+        proxy_read_timeout 1h;
+    }
+}
