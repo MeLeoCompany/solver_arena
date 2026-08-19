@@ -25,6 +25,9 @@ backend/engines/**/*.h
 # not by the running app or the Docker image; heavy, not worth it in git.
 backend/examples/
 
+# Одноразовый архив для переноса вендоренных бинарников по scp (см. выше) — не коммитим
+/engines-binaries.tar.gz
+
 # Frontend
 frontend/node_modules/
 frontend/dist/

@@ -22,6 +22,11 @@ server {
     ssl_certificate /etc/letsencrypt/live/${DOMAIN}/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/${DOMAIN}/privkey.pem;
 
+    # MPS-файлы и особенно zip-архивы батчей легко превышают дефолтный
+    # 1m — без этого загрузка большого файла падает с "413 Request Entity
+    # Too Large" ещё на nginx, не доходя до бэкенда.
+    client_max_body_size 500m;
+
     root /usr/share/nginx/html;
     index index.html;
 
