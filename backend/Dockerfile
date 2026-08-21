@@ -21,12 +21,6 @@ RUN curl -LsSf https://astral.sh/uv/install.sh | sh \
 
 WORKDIR /app
 
-COPY pyproject.toml ./
-COPY app ./app
-COPY migrations ./migrations
-COPY alembic.ini ./
-COPY engines ./engines
-
 # cuopt-cu13's own transitive deps (e.g. libcuopt-cu13) are hosted on
 # NVIDIA's package index, not plain PyPI — without --extra-index-url pip
 # either can't find a wheel at all or falls back to a very slow (and
@@ -34,9 +28,21 @@ COPY engines ./engines
 # as its own explicit, pinned step (not folded into the project install
 # below) so its own dependency resolution never gets pulled in a
 # different direction by the web-app dependencies.
-RUN pip install --no-cache-dir --extra-index-url=https://pypi.nvidia.com 'cuopt-cu13==26.8.*'
+# Placed BEFORE any COPY of app code/metadata so this heavy CUDA layer
+# stays cached across ordinary code changes — it depends on nothing here.
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --extra-index-url=https://pypi.nvidia.com 'cuopt-cu13==26.8.*'
 
-RUN pip install --no-cache-dir .
+# Project metadata first, so the dependency install below only re-runs
+# when pyproject.toml changes — not on every source edit.
+COPY pyproject.toml ./
+RUN --mount=type=cache,target=/root/.cache/pip pip install .
+
+# App code copied last: edits here invalidate nothing above.
+COPY app ./app
+COPY migrations ./migrations
+COPY alembic.ini ./
+COPY engines ./engines
 
 EXPOSE 8000
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
