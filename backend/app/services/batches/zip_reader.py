@@ -2,7 +2,7 @@ import zipfile
 from io import BytesIO
 
 MAX_FILES = 200
-MAX_TOTAL_BYTES = 200 * 1024 * 1024
+MAX_TOTAL_BYTES = 1024 * 1024 * 1024  # 1 GiB
 
 
 class BatchZipError(ValueError):
