@@ -54,6 +54,7 @@ def _solve_milp(xalglib, problem: MpsProblem, flags: dict, log) -> tuple:
     algorithm = str(flags.get("algorithm", "dss")).lower()
     eps = float(flags.get("eps", 0.0))
     log(f"algorithm={algorithm} eps={eps}")
+    xalglib.minlpsetscale(state, [0.1]*n)
     if algorithm == "ipm":
         xalglib.minlpsetalgoipm(state, eps)
     else:
