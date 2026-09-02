@@ -39,5 +39,9 @@ def read_mps_files(zip_bytes: bytes) -> list[tuple[str, bytes]]:
         seen_names.add(name)
         files.append((name, archive.read(info)))
 
-    files.sort(key=lambda item: item[0])
+    # Preserve the archive's own entry order (batch_index/task numbering is
+    # assigned from this order downstream in runner.py) rather than
+    # re-sorting alphabetically — users build the zip in the order they
+    # want tasks solved/reported in, and a numeric-looking name like
+    # "hour[20]" sorts before "hour[2]" lexicographically anyway.
     return files

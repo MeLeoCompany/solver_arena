@@ -14,10 +14,14 @@ def _zip_bytes(entries: dict[str, bytes]) -> bytes:
     return buf.getvalue()
 
 
-def test_reads_mps_files_sorted_by_name():
+def test_reads_mps_files_in_archive_order():
+    # Deliberately not alphabetical — batch_index/task numbering downstream
+    # (runner.py) follows this order, so it must match how the user built
+    # the archive, not a re-sort (which would also get numeric-looking
+    # names like "hour[20]" wrong, sorting it before "hour[2]").
     zip_bytes = _zip_bytes({"b.mps": b"B", "a.mps": b"A"})
     files = read_mps_files(zip_bytes)
-    assert [name for name, _ in files] == ["a.mps", "b.mps"]
+    assert [name for name, _ in files] == ["b.mps", "a.mps"]
     assert dict(files) == {"a.mps": b"A", "b.mps": b"B"}
 
 
