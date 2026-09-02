@@ -37,7 +37,7 @@ server {
 
     # API prefixes — mirrors frontend/vite.config.ts's dev-time proxy list
     # and the top-level routers in backend/app/api/*.py.
-    location ~ ^/(auth|batches|compare|jobs|solve|solvers|system|users)(/|$) {
+    location ~ ^/(auth|batches|compare|jobs|solve|solvers|system|users|qore-versions)(/|$) {
         proxy_pass http://backend:8000;
         proxy_http_version 1.1;
         proxy_set_header Host $host;

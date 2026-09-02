@@ -7,6 +7,7 @@ import { BatchLogPanel } from '../components/BatchLogPanel'
 import { BatchProgressCard } from '../components/BatchProgressCard'
 import { AvailabilityPanel } from '../components/AvailabilityPanel'
 import { ConfirmModal } from '../components/ConfirmModal'
+import { UploadProgressBar } from '../components/UploadProgressBar'
 import { listSolvers, refreshSolvers, type SolverInfo } from '../api/solvers'
 import { cancelBatch, submitBatch } from '../api/batches'
 import { useBatchPolling } from '../hooks/useBatch'
@@ -28,6 +29,7 @@ export function BatchUploadPage() {
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [cancelling, setCancelling] = useState(false)
   const [showBusyConfirm, setShowBusyConfirm] = useState(false)
+  const [uploadPercent, setUploadPercent] = useState<number | null>(null)
   const activeJobs = useSystemStatus()
 
   useEffect(() => {
@@ -69,14 +71,17 @@ export function BatchUploadPage() {
   async function doSubmit() {
     if (!zipFile || !solver) return
     setSubmitError(null)
+    setUploadPercent(0)
     setPhase('submitting')
     try {
-      const response = await submitBatch(solver.key, zipFile, flagValues)
+      const response = await submitBatch(solver.key, zipFile, flagValues, setUploadPercent)
       setBatchId(response.batch_id)
       setPhase('running')
     } catch (err) {
       setSubmitError(err instanceof ApiError ? err.message : 'Не удалось отправить группу задач')
       setPhase('idle')
+    } finally {
+      setUploadPercent(null)
     }
   }
 
@@ -170,7 +175,13 @@ export function BatchUploadPage() {
         </div>
       )}
 
-      {phase === 'submitting' && <div className="solve-page__loading">Загружаем архив…</div>}
+      {phase === 'submitting' && (
+        uploadPercent !== null && uploadPercent < 100 ? (
+          <UploadProgressBar percent={uploadPercent} />
+        ) : (
+          <div className="solve-page__loading">Распаковываем архив…</div>
+        )
+      )}
 
       {batchId && phase !== 'idle' && (
         <div className="solve-page__result">

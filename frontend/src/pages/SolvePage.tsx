@@ -7,6 +7,7 @@ import { LogPanel } from '../components/LogPanel'
 import { JobResultCard } from '../components/JobResultCard'
 import { AvailabilityPanel } from '../components/AvailabilityPanel'
 import { ConfirmModal } from '../components/ConfirmModal'
+import { UploadProgressBar } from '../components/UploadProgressBar'
 import { listSolvers, refreshSolvers, solveEndpoint, type SolverInfo } from '../api/solvers'
 import { submitSolve, cancelJob } from '../api/jobs'
 import type { JobResponse } from '../api/types'
@@ -28,6 +29,7 @@ export function SolvePage() {
   const [result, setResult] = useState<JobResponse | null>(null)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [showBusyConfirm, setShowBusyConfirm] = useState(false)
+  const [uploadPercent, setUploadPercent] = useState<number | null>(null)
   const activeJobs = useSystemStatus()
 
   useEffect(() => {
@@ -65,15 +67,18 @@ export function SolvePage() {
     setJobId(newJobId)
     setResult(null)
     setSubmitError(null)
+    setUploadPercent(0)
     setPhase('running')
 
     try {
-      const response = await submitSolve(solveEndpoint(solver.key), newJobId, file, flagValues)
+      const response = await submitSolve(solveEndpoint(solver.key), newJobId, file, flagValues, setUploadPercent)
       setResult(response)
       setPhase('settled')
     } catch (err) {
       setSubmitError(err instanceof ApiError ? err.message : 'Не удалось отправить задачу')
       setPhase('idle')
+    } finally {
+      setUploadPercent(null)
     }
   }
 
@@ -168,6 +173,8 @@ export function SolvePage() {
           )}
         </div>
       )}
+
+      {uploadPercent !== null && uploadPercent < 100 && <UploadProgressBar percent={uploadPercent} />}
 
       {jobId && phase !== 'idle' && (
         <div className="solve-page__logs">

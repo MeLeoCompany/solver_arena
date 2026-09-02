@@ -2,17 +2,14 @@ services:
   backend:
     build:
       context: ./backend
+      args:
+        # Без GPU по умолчанию — работает на любой машине. Для сборки с
+        # cuOpt/CUDA используйте docker-compose.gpu.yml (см. deploy/README.md).
+        INSTALL_CUOPT: "false"
     env_file:
       - .env
     volumes:
       - ./backend/data:/app/data
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
     restart: unless-stopped
 
   nginx:

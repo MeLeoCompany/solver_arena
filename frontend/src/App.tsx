@@ -8,6 +8,7 @@ import { JobPage } from './pages/JobPage'
 import { HistoryPage } from './pages/HistoryPage'
 import { TokensPage } from './pages/TokensPage'
 import { UsersPage } from './pages/UsersPage'
+import { QoreVersionsPage } from './pages/QoreVersionsPage'
 import { BatchUploadPage } from './pages/BatchUploadPage'
 import { BatchDetailPage } from './pages/BatchDetailPage'
 import { ComparePage } from './pages/ComparePage'
@@ -106,6 +107,16 @@ export default function App() {
               <ProtectedRoute>
                 <Layout>
                   <UsersPage />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/qore-versions"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <QoreVersionsPage />
                 </Layout>
               </ProtectedRoute>
             }

@@ -21,6 +21,7 @@ from app.models.batch import Batch  # noqa: F401
 from app.models.job import Job, JobFlag, JobLog  # noqa: F401
 from app.models.user import ApiToken, Session, User  # noqa: F401
 from app.models.solver import Solver, SolverParameter  # noqa: F401
+from app.models.qore_version import QoreVersion  # noqa: F401
 
 target_metadata = Base.metadata
 

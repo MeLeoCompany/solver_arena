@@ -24,6 +24,9 @@ function highlightMatch(name: string, query: string): ReactNode {
 export function FlagsEditor({ parameterNames, values, onChange, disabled }: Props) {
   const [query, setQuery] = useState('')
   const [showSuggestions, setShowSuggestions] = useState(false)
+  const [pasteText, setPasteText] = useState('')
+  const [pasteError, setPasteError] = useState<string | null>(null)
+  const [copied, setCopied] = useState(false)
 
   const trimmedQuery = query.trim().toLowerCase()
   const suggestions = trimmedQuery
@@ -45,6 +48,33 @@ export function FlagsEditor({ parameterNames, values, onChange, disabled }: Prop
   function removeParameter(name: string) {
     const { [name]: _removed, ...rest } = values
     onChange(rest)
+  }
+
+  function handleCopyJson() {
+    navigator.clipboard.writeText(JSON.stringify(values, null, 2))
+    setCopied(true)
+    setTimeout(() => setCopied(false), 1500)
+  }
+
+  function handleApplyJson() {
+    let parsed: unknown
+    try {
+      parsed = JSON.parse(pasteText)
+    } catch {
+      setPasteError('Не похоже на валидный JSON')
+      return
+    }
+    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+      setPasteError('Ожидается плоский JSON-объект вида {"параметр": "значение"}')
+      return
+    }
+    const next: Record<string, string> = {}
+    for (const [name, value] of Object.entries(parsed as Record<string, unknown>)) {
+      next[name] = typeof value === 'string' ? value : JSON.stringify(value)
+    }
+    onChange(next)
+    setPasteError(null)
+    setPasteText('')
   }
 
   return (
@@ -95,6 +125,48 @@ export function FlagsEditor({ parameterNames, values, onChange, disabled }: Prop
           ))}
         </div>
       )}
+
+      <details className="flags-editor__json-tools">
+        <summary>Параметры как JSON — скопировать или вставить сохранённый набор</summary>
+        <div className="flags-editor__json-tools-body">
+          <div className="flags-editor__json-tools-row">
+            <span className="flags-editor__json-tools-label">Текущие параметры →</span>
+            <button
+              type="button"
+              className="button"
+              disabled={disabled || Object.keys(values).length === 0}
+              onClick={handleCopyJson}
+            >
+              {copied ? 'Скопировано ✓' : 'Скопировать'}
+            </button>
+          </div>
+
+          <div className="flags-editor__json-tools-row flags-editor__json-tools-row--paste">
+            <span className="flags-editor__json-tools-label">Сохранённый JSON →</span>
+            <div className="flags-editor__json-tools-paste-input">
+              <textarea
+                placeholder={'{\n  "param1": "value1",\n  "param2": "value2"\n}'}
+                value={pasteText}
+                disabled={disabled}
+                spellCheck={false}
+                onChange={(e) => {
+                  setPasteText(e.target.value)
+                  setPasteError(null)
+                }}
+              />
+              {pasteError && <div className="flags-editor__json-error">{pasteError}</div>}
+              <button
+                type="button"
+                className="button"
+                disabled={disabled || !pasteText.trim()}
+                onClick={handleApplyJson}
+              >
+                Вставить (заменит текущие параметры)
+              </button>
+            </div>
+          </div>
+        </div>
+      </details>
     </div>
   )
 }

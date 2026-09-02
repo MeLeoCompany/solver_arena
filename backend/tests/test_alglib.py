@@ -29,7 +29,10 @@ def test_solve_alglib_returns_optimal(client):
 
     log = client.get(f"/jobs/{job_id}/log")
     assert log.status_code == 200
-    assert "integer/binary variables present" in log.text  # this file has 36
+    # this file has 36 integer/binary variables — real branch-and-bound now
+    # (minlpsolversetintkth), not the old relaxation-only path
+    assert "integer/binary variables" in log.text
+    assert "branch-and-bound" in log.text
 
 
 def test_solve_alglib_accepts_algorithm_and_eps_flags(client):

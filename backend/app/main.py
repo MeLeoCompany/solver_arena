@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI
 
-from app.api import alglib, auth, batches, comparison, cplex, cuopt, jobs, qore, solvers, status, users
+from app.api import alglib, auth, batches, comparison, cplex, cuopt, jobs, qore, qore_versions, solvers, status, users
 from app.logging_setup import configure_logging
 from app.migrate import run_migrations
 from app.services.auth.bootstrap import seed_admin_user
@@ -57,6 +57,12 @@ TAGS_METADATA = [
         "description": "Admin-only user management — create, list, and remove accounts. "
         "No roles/permissions beyond admin-vs-not.",
     },
+    {
+        "name": "QORE versions",
+        "description": "Admin-only: upload a replacement QORE .so, smoke-tested before it "
+        "goes live, with history and manual rollback. QORE exposes no version string of "
+        "its own, so each upload carries an admin-typed label instead.",
+    },
 ]
 
 
@@ -85,3 +91,4 @@ app.include_router(solvers.router, tags=["Solvers"], dependencies=[Depends(requi
 app.include_router(comparison.router, tags=["Compare"], dependencies=[Depends(require_user)])
 app.include_router(status.router, tags=["System"], dependencies=[Depends(require_user)])
 app.include_router(users.router, tags=["Users"], dependencies=[Depends(require_admin)])
+app.include_router(qore_versions.router, tags=["QORE versions"], dependencies=[Depends(require_admin)])

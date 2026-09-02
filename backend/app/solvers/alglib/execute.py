@@ -37,38 +37,76 @@ def _build_sparse_matrix(xalglib, n_cols: int, n_rows: int, rows, cols, values):
 
 
 def _solve_milp(xalglib, problem: MpsProblem, flags: dict, log) -> tuple:
-    n = problem.var_count
-    state = xalglib.minlpcreate(n)
+    """Uses ALGLIB's newer minlpsolver* API (reverse-communication,
+    objective/jacobian callback) rather than the older minlp* one —
+    verified empirically against real problems before switching (not
+    guessed): terminationtype codes 1 (optimal) and -3 (infeasible) match
+    the same convention as minlp*/minqp*, and minlpsolversetintkth() was
+    confirmed to genuinely branch-and-bound to an integer solution (not a
+    no-op) on a small hand-built test, not just accept the flag silently.
+    """
+    import numpy as np
 
-    # minlp only minimizes — negate for MAX, then negate the result back
-    cost = (problem.obj if problem.minimize else -problem.obj).tolist()
-    xalglib.minlpsetcost(state, cost)
-    xalglib.minlpsetbc(state, problem.var_lb.tolist(), problem.var_ub.tolist())
+    n = problem.var_count
+
+    # This solver wants a starting point (it's used to warm-start the
+    # subsolver, not just as an initial-feasibility guess) — 0 clipped into
+    # each variable's own bounds is a safe default when 0 itself may be
+    # outside [lb, ub].
+    lb = problem.var_lb
+    ub = problem.var_ub
+    x0 = np.clip(0.0, lb, ub).tolist()
+
+    state = xalglib.minlpsolvercreate(n, x0)
+    xalglib.minlpsolversetbc(state, lb.tolist(), ub.tolist())
 
     if problem.row_count:
         sparse = _build_sparse_matrix(
             xalglib, n, problem.row_count, problem.constraint_rows, problem.constraint_cols, problem.constraint_values
         )
-        xalglib.minlpsetlc2(state, sparse, problem.row_lo.tolist(), problem.row_hi.tolist(), problem.row_count)
+        xalglib.minlpsolversetlc2(state, sparse, problem.row_lo.tolist(), problem.row_hi.tolist(), problem.row_count)
 
-    algorithm = str(flags.get("algorithm", "dss")).lower()
-    eps = float(flags.get("eps", 0.0))
-    log(f"algorithm={algorithm} eps={eps}")
-    xalglib.minlpsetscale(state, [0.1]*n)
-    if algorithm == "ipm":
-        xalglib.minlpsetalgoipm(state, eps)
+    # minlpsolver only minimizes — negate for MAX, then negate the result back.
+    cost = (problem.obj if problem.minimize else -problem.obj).tolist()
+
+    def calc_func(x, fi, jac, param):
+        fi[0] = sum(cost[i] * x[i] for i in range(n))
+        for i in range(n):
+            jac[0][i] = cost[i]
+
+    # Tuning as validated empirically against real problems, not a reference
+    # implementation's defaults taken on faith:
+    # - algobbsync/bbsyncprofilesmalltree (present in an earlier draft) were
+    #   dropped — on a 36-integer-variable problem they made the search both
+    #   slower (527 vs 57 tree nodes) and no more accurate, so there's
+    #   nothing they're actually buying here.
+    # - subsolverepsf/epsx at eps=1e-2 make the per-node LP subsolver
+    #   imprecise enough that branch-and-bound reports a real, feasible MIP
+    #   as infeasible (reproduced: with them set, terminationtype=-3 after 3
+    #   nodes on that same problem; without, terminationtype=1 with the
+    #   correct objective after 57 nodes) — so they're only applied when
+    #   there's no branching to do.
+    eps = float(flags.get("eps", 1e-2))
+    log(f"eps={eps}")
+    xalglib.minlpsolversetpdgap(state, eps)
+
+    if problem.integer_vars:
+        log(f"{len(problem.integer_vars)} integer/binary variables — branch-and-bound")
+        for k in problem.integer_vars:
+            xalglib.minlpsolversetintkth(state, int(k))
     else:
-        xalglib.minlpsetalgodss(state, eps)
+        xalglib.minlpsolversetsubsolverepsf(state, eps)
+        xalglib.minlpsolversetsubsolverepsx(state, eps)
 
     log("optimizing...")
     started = time.monotonic()
-    xalglib.minlpoptimize(state)
+    xalglib.minlpsolveroptimize_j(state, calc_func)
     wall_time = time.monotonic() - started
 
-    x, rep = xalglib.minlpresults(state)
+    x, rep = xalglib.minlpsolverresults(state)
     log(
-        f"terminationtype={rep.terminationtype} iterations={rep.iterationscount} "
-        f"primalerror={rep.primalerror} dualerror={rep.dualerror}"
+        f"terminationtype={rep.terminationtype} nfev={rep.nfev} "
+        f"nsubproblems={rep.nsubproblems} ntreenodes={rep.ntreenodes} pdgap={rep.pdgap}"
     )
     return x, rep.terminationtype, rep.f, wall_time
 
@@ -135,10 +173,13 @@ def execute(mps_path: str, flags: dict, log_path: str, solution_path: str) -> di
             f"parsed MPS: {problem.var_count} variables, {problem.row_count} constraints"
             + (f", {len(problem.quad_rows)} quadratic objective terms (QP)" if problem.is_qp else "")
         )
-        if problem.integer_vars:
+        if problem.is_qp and problem.integer_vars:
+            # _solve_qp still goes through the older minqp* API, which has
+            # no integer-marking equivalent — unlike the LP path below
+            # (minlpsolver*), this one really is relaxation-only for now.
             log(
-                f"WARNING: {len(problem.integer_vars)} integer/binary variables present — "
-                "ALGLIB Free Edition has no MIP support, solving as a continuous relaxation"
+                f"WARNING: {len(problem.integer_vars)} integer/binary variables present in a QP — "
+                "no MIQP support here, solving as a continuous relaxation"
             )
 
         if problem.is_qp:

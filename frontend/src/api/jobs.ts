@@ -1,4 +1,4 @@
-import { getJson, getText, postForm, postJson } from './client'
+import { getJson, getText, postForm, postFormWithProgress, postJson } from './client'
 import type { CancelResponse, JobResponse, SolutionResponse } from './types'
 
 export function submitSolve(
@@ -6,11 +6,14 @@ export function submitSolve(
   jobId: string,
   file: File,
   flags: Record<string, string>,
+  onProgress?: (percent: number) => void,
 ): Promise<JobResponse> {
   const form = new FormData()
   form.append('mps_file', file)
   form.append('flags', JSON.stringify({ job_id: jobId, flags }))
-  return postForm<JobResponse>(endpoint, form)
+  return onProgress
+    ? postFormWithProgress<JobResponse>(endpoint, form, onProgress)
+    : postForm<JobResponse>(endpoint, form)
 }
 
 export function getJob(jobId: string): Promise<JobResponse> {

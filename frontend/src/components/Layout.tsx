@@ -74,6 +74,7 @@ export function Layout({ children, wide }: { children: ReactNode; wide?: boolean
           <Link to="/history">История</Link>
           <Link to="/tokens">API-токены</Link>
           {user?.is_admin && <Link to="/users">Пользователи</Link>}
+          {user?.is_admin && <Link to="/qore-versions">Версии QORE</Link>}
         </nav>
         {user && (
           <div className="layout__user">

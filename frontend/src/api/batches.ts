@@ -1,16 +1,19 @@
-import { getJson, postForm, postJson } from './client'
+import { getJson, postForm, postFormWithProgress, postJson } from './client'
 import type { BatchCancelResponse, BatchResponse } from './types'
 
 export function submitBatch(
   solverKey: string,
   zipFile: File,
   flags: Record<string, string>,
+  onProgress?: (percent: number) => void,
 ): Promise<BatchResponse> {
   const form = new FormData()
   form.append('zip_file', zipFile)
   form.append('solver', solverKey)
   form.append('flags', JSON.stringify({ flags }))
-  return postForm<BatchResponse>('/batches', form)
+  return onProgress
+    ? postFormWithProgress<BatchResponse>('/batches', form, onProgress)
+    : postForm<BatchResponse>('/batches', form)
 }
 
 export function getBatch(batchId: string): Promise<BatchResponse> {

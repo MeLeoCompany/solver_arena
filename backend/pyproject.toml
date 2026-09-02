@@ -17,12 +17,16 @@ dependencies = [
     "bcrypt",
     "anyio",
     "numpy",
-    "cuopt-cu13==26.8.*",
     "reportlab",
 ]
 
 [project.optional-dependencies]
 dev = ["pytest", "pytest-asyncio", "httpx2"]
+# Split out so a GPU-less deploy can skip it entirely — it's a multi-GB
+# CUDA/RAPIDS dependency chain (cudf, cupy, etc.) that only cuOpt needs;
+# CPLEX/ALGLIB/QORE don't touch it. See backend/Dockerfile's INSTALL_CUOPT
+# build arg.
+cuopt = ["cuopt-cu13==26.8.*"]
 
 [tool.setuptools.packages.find]
 include = ["app*", "migrations*"]

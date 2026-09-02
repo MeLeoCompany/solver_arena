@@ -54,6 +54,7 @@ class Settings(BaseSettings):
     qore_license_file: Path = _QORE_ENGINE_DIR / "license" / "License.json"
     qore_check_script: Path = _QORE_SOLVERS_DIR / "qore_check.py"
     qore_solve_script: Path = _QORE_SOLVERS_DIR / "qore_solve.py"
+    qore_stubgen_script: Path = _QORE_SOLVERS_DIR / "qore_stubgen.py"
 
     availability_check_timeout_sec: float = 30.0
 
@@ -74,6 +75,12 @@ class Settings(BaseSettings):
     def app_log_dir(self) -> Path:
         """Логи самого сервиса (не солверов) — см. app/logging_setup.py."""
         return PROJECT_ROOT / "logs"
+
+    @property
+    def qore_versions_dir(self) -> Path:
+        """История загруженных QORE .so — под data/, переживает пересоздание
+        контейнера (см. app/services/qore_versions/)."""
+        return self.data_dir / "qore_versions"
 
 
 settings = Settings()

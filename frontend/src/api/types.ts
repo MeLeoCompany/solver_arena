@@ -75,6 +75,16 @@ export interface UserCreatedResponse {
   created_at: string
 }
 
+export interface QoreVersionResponse {
+  id: number
+  label: string
+  active: boolean
+  smoke_test_ok: boolean
+  smoke_test_output: string | null
+  uploaded_by: string | null
+  uploaded_at: string
+}
+
 export interface ObjectiveComparisonRow {
   alt_job_id: string
   alt_solver: string
