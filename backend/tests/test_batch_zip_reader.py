@@ -14,15 +14,31 @@ def _zip_bytes(entries: dict[str, bytes]) -> bytes:
     return buf.getvalue()
 
 
-def test_reads_mps_files_in_archive_order():
-    # Deliberately not alphabetical — batch_index/task numbering downstream
-    # (runner.py) follows this order, so it must match how the user built
-    # the archive, not a re-sort (which would also get numeric-looking
-    # names like "hour[20]" wrong, sorting it before "hour[2]").
+def test_reads_mps_files_sorted_alphabetically():
     zip_bytes = _zip_bytes({"b.mps": b"B", "a.mps": b"A"})
     files = read_mps_files(zip_bytes)
-    assert [name for name, _ in files] == ["b.mps", "a.mps"]
+    assert [name for name, _ in files] == ["a.mps", "b.mps"]
     assert dict(files) == {"a.mps": b"A", "b.mps": b"B"}
+
+
+def test_reads_mps_files_sorted_numerically_not_lexicographically():
+    # Plain string sort would put "hour[10]" and "hour[11]" right after
+    # "hour[1]" (before "hour[2]") — batch_index/task numbering downstream
+    # (runner.py) follows this order, so it needs to match how a human
+    # reading the task numbers would expect them ordered.
+    zip_bytes = _zip_bytes(
+        {
+            "hour[2]_task[1].mps": b"2",
+            "hour[10]_task[1].mps": b"10",
+            "hour[1]_task[1].mps": b"1",
+        }
+    )
+    files = read_mps_files(zip_bytes)
+    assert [name for name, _ in files] == [
+        "hour[1]_task[1].mps",
+        "hour[2]_task[1].mps",
+        "hour[10]_task[1].mps",
+    ]
 
 
 def test_ignores_non_mps_entries():

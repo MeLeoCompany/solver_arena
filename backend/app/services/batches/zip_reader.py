@@ -1,8 +1,21 @@
+import re
 import zipfile
 from io import BytesIO
 
 MAX_FILES = 200
 MAX_TOTAL_BYTES = 1024 * 1024 * 1024  # 1 GiB
+
+_DIGIT_RUN = re.compile(r"(\d+)")
+
+
+def _natural_sort_key(name: str) -> list:
+    """"hour[2]" before "hour[10]" — plain string order puts "hour[10]"
+    first (lexicographic: '1' < '2'), which is not how anyone reading
+    task numbers expects them ordered. Splits on digit runs and compares
+    those numerically, text parts case-insensitively.
+    """
+    parts = _DIGIT_RUN.split(name)
+    return [int(part) if part.isdigit() else part.lower() for part in parts]
 
 
 class BatchZipError(ValueError):
@@ -39,9 +52,12 @@ def read_mps_files(zip_bytes: bytes) -> list[tuple[str, bytes]]:
         seen_names.add(name)
         files.append((name, archive.read(info)))
 
-    # Preserve the archive's own entry order (batch_index/task numbering is
-    # assigned from this order downstream in runner.py) rather than
-    # re-sorting alphabetically — users build the zip in the order they
-    # want tasks solved/reported in, and a numeric-looking name like
-    # "hour[20]" sorts before "hour[2]" lexicographically anyway.
+    # Sort by natural (numeric-aware) filename order rather than the zip's
+    # own raw entry order — many zip tools already write entries in plain
+    # alphabetical order regardless of how the user actually thinks of the
+    # sequence, which not only isn't necessarily the intended task order,
+    # it also isn't numeric order: "hour[10]" sorts before "hour[2]"
+    # lexicographically. batch_index/task numbering downstream (runner.py)
+    # follows this order.
+    files.sort(key=lambda item: _natural_sort_key(item[0]))
     return files
