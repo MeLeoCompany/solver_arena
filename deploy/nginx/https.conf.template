@@ -37,7 +37,20 @@ server {
 
     # API prefixes — mirrors frontend/vite.config.ts's dev-time proxy list
     # and the top-level routers in backend/app/api/*.py.
+    #
+    # Several of these prefixes are also SPA page paths (/solve, /compare,
+    # /batches/new, /batches/:id, ...) — a plain regex match here would
+    # swallow full-page GETs for those paths too (e.g. hitting F5 on
+    # /batches/new forwards to the backend, which parses "new" as a batch_id
+    # and returns a JSON 404 instead of the page). Browser navigations send
+    # `Accept: text/html...` first; our own frontend/src/api/client.ts calls
+    # don't — so hand html-accepting requests back to the SPA fallback above
+    # and only proxy actual API calls.
     location ~ ^/(auth|batches|compare|jobs|solve|solvers|system|users|qore-versions)(/|$) {
+        if ($http_accept ~* "text/html") {
+            rewrite ^ /index.html last;
+        }
+
         proxy_pass http://backend:8000;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
