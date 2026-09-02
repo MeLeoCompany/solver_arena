@@ -1,8 +1,5 @@
 import time
 
-import cuopt.linear_programming as lp
-import numpy as np
-
 from app.schemas.common import JobState, SolveStatus
 
 LP_CATEGORY = 0
@@ -28,6 +25,9 @@ _MILP_STATUS_MAP = {
 
 
 def execute(mps_path: str, flags: dict, log_path: str, solution_path: str) -> dict:
+    import cuopt.linear_programming as lp
+    import numpy as np
+
     settings = lp.SolverSettings()
     for name, value in flags.items():
         settings.set_parameter(name.replace("-", "_"), value)
