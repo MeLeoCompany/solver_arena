@@ -14,6 +14,7 @@ import type { JobResponse } from '../api/types'
 import { ApiError } from '../api/client'
 import { useSystemStatus } from '../status/SystemStatusContext'
 import { pluralRu } from '../utils/pluralize'
+import { randomUUID } from '../utils/uuid'
 
 type Phase = 'idle' | 'running' | 'cancelling' | 'settled'
 
@@ -63,7 +64,7 @@ export function SolvePage() {
 
   async function doSubmit() {
     if (!file || !solver) return
-    const newJobId = crypto.randomUUID()
+    const newJobId = randomUUID()
     setJobId(newJobId)
     setResult(null)
     setSubmitError(null)
