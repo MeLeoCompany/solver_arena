@@ -3,8 +3,17 @@
 Standalone by design — no imports from the app package, since this file
 is executed by a different interpreter than the rest of the codebase.
 Talks to the parent (app.services.jobs.external_runner) purely through
-files: reads a JSON job spec, writes the solver's own log lines to
-log_path as it goes, and writes a small JSON result + solution once done.
+files: reads a JSON job spec, prints plain-text progress lines to its own
+stdout as it goes — the parent redirects that stream straight to log_path
+at spawn time, rather than this script managing that file itself — and
+writes a small JSON result + solution once done.
+
+Log lines are plain print(..., flush=True), not a manual log_path file
+handle: most of QORE's own solve trace (simplex iterations, B&B node
+table, presolve summary) turned out — verified empirically against the
+real .so — to be unconditional stdout output, never reaching a file opened
+via its own set_up_logger() regardless of the configured log level. Piping
+this script's inherited stdout is what actually captures it.
 """
 import json
 import os
@@ -43,12 +52,8 @@ def main():
     if spec.get("module_dir"):
         sys.path.insert(0, spec["module_dir"])
 
-    log_path = spec["log_path"]
-    log_file = open(log_path, "a")
-
     def log(message):
-        log_file.write(message + "\n")
-        log_file.flush()
+        print(message, flush=True)
 
     result = {
         "state": "failed",
@@ -123,8 +128,6 @@ def main():
         log("ERROR: {}".format(exc))
         result["state"] = "failed"
         result["error"] = str(exc)
-    finally:
-        log_file.close()
 
     _write_result(spec["result_path"], result)
     return 0

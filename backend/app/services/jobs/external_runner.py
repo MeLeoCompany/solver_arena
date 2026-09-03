@@ -87,21 +87,30 @@ async def run(
 
     logging.info("job %s: starting %s solve (external interpreter)", job_id, solver_name)
 
-    process = await asyncio.create_subprocess_exec(
-        python_executable,
-        script_path,
-        str(spec_path),
-        env=os.environ.copy(),
-        stdout=asyncio.subprocess.DEVNULL,
-        stderr=asyncio.subprocess.DEVNULL,
-    )
-    job_registry.register(job_id, _SubprocessHandle(process))
+    # The child's own stdout/stderr become log_path directly (rather than
+    # DEVNULL, with the script writing to log_path itself in parallel) —
+    # verified empirically against the real qore_opt_py .so that most of
+    # QORE's own solve trace (simplex iterations, B&B node table, presolve
+    # summary) is unconditional stdout output, not gated by its logger
+    # config at all, so it never reaches a log file opened via its own
+    # set_up_logger(). Piping the OS-level stream also sidesteps
+    # set_up_logger() truncating log_path out from under a second writer.
+    with open(log_path, "ab", buffering=0) as log_fd:
+        process = await asyncio.create_subprocess_exec(
+            python_executable,
+            script_path,
+            str(spec_path),
+            env=os.environ.copy(),
+            stdout=log_fd,
+            stderr=log_fd,
+        )
+        job_registry.register(job_id, _SubprocessHandle(process))
 
-    tailer = LogTailer()
-    async with anyio.create_task_group() as tg:
-        tg.start_soon(poll_log_file, job_id, log_path, tailer)
-        await process.wait()
-        tg.cancel_scope.cancel()
+        tailer = LogTailer()
+        async with anyio.create_task_group() as tg:
+            tg.start_soon(poll_log_file, job_id, log_path, tailer)
+            await process.wait()
+            tg.cancel_scope.cancel()
 
     for line in tailer.read_new(log_path):  # catch lines missed between last poll and cancel
         log_hub.publish(job_id, line)
